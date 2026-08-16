@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Local AI Gateway</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0b1015; --panel:#111820; --panel2:#0d1319; --line:#303943; --text:#f2f6fa; --muted:#9fb2c5; --ok:#2ed34f; --bad:#ff6262; --accent:#31924a; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font:15px/1.45 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial; }
+    main { max-width:1240px; margin:0 auto; padding:24px; }
+    h1,h2,h3 { margin:0 0 10px; } h1 { font-size:30px; } h2 { font-size:22px; } h3 { font-size:17px; }
+    p { color:var(--muted); margin:4px 0 16px; }
+    .grid { display:grid; gap:10px; } .status-grid { grid-template-columns:repeat(6,minmax(0,1fr)); }
+    .two { grid-template-columns:repeat(2,minmax(0,1fr)); } .three { grid-template-columns:repeat(3,minmax(0,1fr)); }
+    .metrics { grid-template-columns:repeat(4,minmax(0,1fr)); }
+    .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; margin-top:18px; }
+    .mini { background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:12px; min-height:78px; }
+    .label { color:#8fb0ce; font-size:12px; margin-bottom:5px; } .value { font-weight:750; font-size:17px; word-break:break-word; }
+    .ok { color:var(--ok); } .bad { color:var(--bad); } .muted { color:var(--muted); }
+    label { display:block; color:#9ab7d2; font-size:13px; margin:10px 0 5px; }
+    input,select,textarea,button { width:100%; border:1px solid var(--line); border-radius:8px; background:#0c1218; color:var(--text); padding:11px 12px; font:inherit; }
+    textarea { min-height:120px; resize:vertical; }
+    button { background:#232a31; font-weight:700; cursor:pointer; } button.primary { background:#238d3d; border-color:#28a447; } button.danger { background:#6d2626; } button:disabled { opacity:.55; cursor:not-allowed; }
+    .row { display:flex; gap:10px; align-items:end; } .row > * { flex:1; } .row .compact { flex:0 0 170px; }
+    .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px; } .toolbar button { width:auto; min-width:130px; }
+    pre { white-space:pre-wrap; word-break:break-word; background:#0b1117; border:1px solid var(--line); padding:14px; border-radius:9px; min-height:70px; max-height:420px; overflow:auto; }
+    .model-list,.agent-list { display:grid; gap:8px; margin-top:12px; }
+    .item { display:flex; gap:12px; justify-content:space-between; align-items:center; background:var(--panel2); border:1px solid var(--line); border-radius:9px; padding:10px 12px; }
+    .item .meta { color:var(--muted); font-size:12px; } .item button { width:auto; padding:7px 10px; }
+    .pill { display:inline-block; border:1px solid var(--line); border-radius:99px; padding:2px 8px; color:var(--muted); font-size:12px; margin-left:5px; }
+    .statusline { min-height:24px; margin-top:8px; color:var(--muted); } .statusline.ok { color:var(--ok); } .statusline.bad { color:var(--bad); }
+    .progress { height:12px; overflow:hidden; border:1px solid var(--line); border-radius:999px; background:#0b1117; margin-top:10px; }
+    .progress > div { height:100%; width:0%; background:var(--accent); transition:width .2s ease; }
+    .download-meta { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; color:var(--muted); font-size:12px; margin-top:6px; }
+    .registry-description { color:var(--muted); font-size:13px; margin-top:8px; padding:9px 11px; background:var(--panel2); border:1px solid var(--line); border-radius:8px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .checkline { width:auto; display:inline-flex; align-items:center; gap:8px; margin:8px 0 0; color:var(--muted); font-size:13px; }
+    .checkline input { width:auto; margin:0; padding:0; }
+    details { margin-top:10px; color:var(--muted); } summary { cursor:pointer; }
+    a { color:#8cc8ff; }
+    @media (max-width:900px) { .status-grid,.metrics,.three,.two { grid-template-columns:1fr 1fr; } }
+    @media (max-width:600px) { main{padding:14px}.status-grid,.metrics,.three,.two{grid-template-columns:1fr}.row{display:block}.compact{margin-top:8px} }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Local AI Gateway</h1>
+  <p>Console local de inferência, modelos, agentes, memória e RAG.</p>
+
+  <section class="grid status-grid">
+    <div class="mini"><div class="label">Gateway</div><div class="value" id="sGateway">—</div></div>
+    <div class="mini"><div class="label">Ollama</div><div class="value" id="sOllama">—</div></div>
+    <div class="mini"><div class="label">PostgreSQL</div><div class="value" id="sPostgres">—</div></div>
+    <div class="mini"><div class="label">Redis</div><div class="value" id="sRedis">—</div></div>
+    <div class="mini"><div class="label">Qdrant</div><div class="value" id="sQdrant">—</div></div>
+    <div class="mini"><div class="label">Modo</div><div class="value" id="sMode">—</div></div>
+  </section>
+
+  <section class="card">
+    <h2>Modelos Ollama</h2>
+    <p>Pesquise uma família no catálogo, selecione o modelo e depois escolha a versão/tag antes de instalar. A lista instalada continua vindo do <code>/api/tags</code> local.</p>
+    <div class="row">
+      <div><label for="registryQuery">Buscar no catálogo Ollama</label><input id="registryQuery" placeholder="ex.: qwen, embedding, coder" autocomplete="off" /></div>
+      <div class="compact"><button id="registrySearchBtn">Buscar</button></div>
+    </div>
+    <div class="row">
+      <div><label for="registryModel">Modelo</label><select id="registryModel"><option value="">Digite uma busca acima</option></select></div>
+      <div><label for="registryTag">Versão/tag</label><select id="registryTag" disabled><option value="">Selecione um modelo primeiro</option></select></div>
+    </div>
+    <div class="registry-description" id="registryDescription" hidden></div>
+    <label class="checkline"><input id="showAdvancedTags" type="checkbox" /> Mostrar quantizações e variantes avançadas</label>
+    <div class="row">
+      <div><label for="pullModel">Modelo/tag para instalar</label><input id="pullModel" placeholder="ex.: qwen3:4b" /></div>
+      <div class="compact"><button class="primary" id="pullBtn">Instalar modelo</button></div>
+      <div class="compact"><button id="reloadModels">Atualizar instalados</button></div>
+    </div>
+    <div class="statusline" id="registryStatus"></div>
+    <div class="progress" id="pullProgressWrap" hidden><div id="pullProgress"></div></div>
+    <div class="download-meta" id="pullMeta" hidden><span id="pullBytes">—</span><span id="pullHeartbeat">—</span></div>
+    <div class="statusline" id="modelStatus"></div>
+    <div class="model-list" id="modelList"></div>
+  </section>
+
+  <section class="card">
+    <h2>Teste de inferência</h2>
+    <div class="row">
+      <div><label for="model">Modelo instalado</label><select id="model"><option value="">Carregando...</option></select></div>
+      <div class="compact"><label for="reasoning">Thinking</label><select id="reasoning"><option value="none">none</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select></div>
+      <div class="compact"><label for="maxTokens">Máx. output</label><input id="maxTokens" type="number" min="1" max="8192" value="256" /></div>
+    </div>
+    <label for="prompt">Mensagem</label><textarea id="prompt" placeholder="Digite uma mensagem"></textarea>
+    <div class="toolbar"><button class="primary" id="send">Enviar</button></div>
+    <div class="statusline" id="sendStatus"></div>
+    <h3>Resposta</h3><pre id="answer">—</pre>
+
+    <h3>Consumo da request</h3>
+    <div class="grid metrics">
+      <div class="mini"><div class="label">Request ID</div><div class="value" id="mRequest">—</div></div>
+      <div class="mini"><div class="label">Modelo público</div><div class="value" id="mPublic">—</div></div>
+      <div class="mini"><div class="label">Modelo Ollama</div><div class="value" id="mUpstream">—</div></div>
+      <div class="mini"><div class="label">Latência</div><div class="value" id="mLatency">—</div></div>
+      <div class="mini"><div class="label">Input tokens</div><div class="value" id="mInput">—</div></div>
+      <div class="mini"><div class="label">Output tokens</div><div class="value" id="mOutput">—</div></div>
+      <div class="mini"><div class="label">Total tokens</div><div class="value" id="mTotal">—</div></div>
+      <div class="mini"><div class="label">Output tokens/s</div><div class="value" id="mTps">—</div></div>
+      <div class="mini"><div class="label">GPU</div><div class="value" id="mGpu">—</div></div>
+      <div class="mini"><div class="label">GPU média / pico</div><div class="value" id="mUtil">—</div></div>
+      <div class="mini"><div class="label">VRAM pico</div><div class="value" id="mVram">—</div></div>
+      <div class="mini"><div class="label">Temperatura média / pico</div><div class="value" id="mTemp">—</div></div>
+      <div class="mini"><div class="label">Potência média / pico</div><div class="value" id="mPower">—</div></div>
+      <div class="mini"><div class="label">Energia</div><div class="value" id="mEnergy">—</div></div>
+      <div class="mini"><div class="label">J / output token</div><div class="value" id="mJpt">—</div></div>
+      <div class="mini"><div class="label">Output tokens / Wh</div><div class="value" id="mTpWh">—</div></div>
+    </div>
+    <details><summary>JSON bruto da última resposta</summary><pre id="rawJson">—</pre></details>
+  </section>
+
+  <section class="card">
+    <h2>RAG / Qdrant</h2>
+    <p>O texto é chunkado, vetorizado pelo modelo de embedding do Ollama e persistido no Qdrant. O modelo de embedding também precisa estar instalado.</p>
+    <div class="two grid">
+      <div>
+        <h3>Ingestão</h3>
+        <label for="ragCollection">Collection</label><input id="ragCollection" value="local_knowledge" />
+        <label for="ragText">Documento / contexto</label><textarea id="ragText" placeholder="Cole texto de documentação, regras, FAQ..."></textarea>
+        <label for="ragMetadata">Metadata JSON</label><input id="ragMetadata" value='{}' />
+        <div class="toolbar"><button class="primary" id="ragIngest">Indexar</button></div>
+        <div class="statusline" id="ragIngestStatus"></div>
+      </div>
+      <div>
+        <h3>Busca semântica</h3>
+        <label for="ragQuery">Consulta</label><textarea id="ragQuery" placeholder="O que você quer recuperar?"></textarea>
+        <div class="toolbar"><button id="ragSearch">Buscar</button></div>
+        <div class="statusline" id="ragSearchStatus"></div>
+        <pre id="ragHits">—</pre>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Agents + memória PostgreSQL</h2>
+    <p>Cada agent guarda configuração no PostgreSQL; cada thread mantém uma janela de mensagens persistida. RAG é opcional por agent.</p>
+    <div class="three grid">
+      <div><label for="agentName">Nome</label><input id="agentName" placeholder="suporte-local" /></div>
+      <div><label for="agentModel">Modelo</label><select id="agentModel"><option value="">Carregando...</option></select></div>
+      <div><label for="agentMemory">Mensagens de memória</label><input id="agentMemory" type="number" value="12" min="0" max="100" /></div>
+    </div>
+    <label for="agentPrompt">System prompt</label><textarea id="agentPrompt" placeholder="Você é um assistente..." ></textarea>
+    <div class="row">
+      <div><label for="agentRagCollection">Collection RAG (opcional)</label><input id="agentRagCollection" placeholder="local_knowledge" /></div>
+      <div class="compact"><label for="agentRag">Usar RAG</label><select id="agentRag"><option value="false">não</option><option value="true">sim</option></select></div>
+      <div class="compact"><button class="primary" id="createAgent">Criar agent</button></div>
+    </div>
+    <div class="statusline" id="agentStatus"></div>
+    <div class="agent-list" id="agentList"></div>
+
+    <h3 style="margin-top:18px">Testar agent</h3>
+    <div class="row">
+      <div><label for="agentChatSelect">Agent</label><select id="agentChatSelect"><option value="">Selecione</option></select></div>
+      <div><label for="threadId">Thread ID (vazio = nova)</label><input id="threadId" placeholder="gerado automaticamente" /></div>
+    </div>
+    <label for="agentMessage">Mensagem</label><textarea id="agentMessage"></textarea>
+    <div class="toolbar"><button class="primary" id="agentSend">Enviar ao agent</button><button id="clearMemory">Limpar memória da thread</button></div>
+    <div class="statusline" id="agentChatStatus"></div>
+    <pre id="agentAnswer">—</pre>
+  </section>
+
+  <section class="card">
+    <h2>API key para integração</h2>
+    <div class="row"><div><label for="keyName">Nome</label><input id="keyName" placeholder="meu-app" /></div><div class="compact"><button id="createKey">Criar API key</button></div></div>
+    <div class="statusline" id="keyStatus"></div>
+    <input id="integrationKey" readonly placeholder="A nova chave aparece aqui uma única vez" />
+  </section>
+</main>
+<script>
+let apiKey = "";
+const $ = id => document.getElementById(id);
+const fmt = (v, digits=1, suffix="") => v == null ? "—" : `${Number(v).toFixed(digits)}${suffix}`;
+function status(id, text, kind="") { const el=$(id); el.textContent=text; el.className=`statusline ${kind}`; }
+async function jsonFetch(url, options={}) {
+  const headers = {...(options.headers||{})};
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+  const response = await fetch(url, {...options, headers});
+  let data; try { data = await response.json(); } catch { data = {}; }
+  if (!response.ok) throw new Error(data?.error?.message || data?.detail || `${response.status} ${response.statusText}`);
+  return {response,data};
+}
+function setService(id, ok, text) { const el=$(id); el.textContent=text ?? (ok?"Online":"Offline"); el.className=`value ${ok?"ok":"bad"}`; }
+function humanBytes(v){ if(v==null)return "—"; const units=["B","KB","MB","GB","TB"]; let n=Number(v),i=0; while(n>=1024&&i<units.length-1){n/=1024;i++;} return `${n.toFixed(i?1:0)} ${units[i]}`; }
+async function initSession(){ const r=await fetch('/admin/ui/session',{method:'POST'}); const data=await r.json(); if(!r.ok) throw new Error(data?.error?.message||'UI session unavailable'); apiKey=data.api_key; }
+async function loadStatus(){ try { const {data}=await jsonFetch('/admin/ui/status'); setService('sGateway',data.gateway); setService('sOllama',data.ollama); setService('sPostgres',data.postgres); setService('sRedis',data.redis); setService('sQdrant',data.qdrant); setService('sMode',true,(data.mode||'cpu').toUpperCase()); } catch(e){ setService('sGateway',false); } }
+async function loadModels(){
+  try {
+    const {data}=await jsonFetch('/admin/models');
+    const models=data.models||[]; $('modelList').innerHTML='';
+    for(const m of models){
+      const div=document.createElement('div'); div.className='item';
+      const left=document.createElement('div'); left.innerHTML=`<strong>${m.name}</strong>${m.running?'<span class="pill">running</span>':''}<div class="meta">${humanBytes(m.size)} ${m.details?.family?`• ${m.details.family}`:''}</div>`;
+      const b=document.createElement('button'); b.textContent='Remover'; b.className='danger'; b.onclick=()=>deleteModel(m.name); div.append(left,b); $('modelList').appendChild(div);
+    }
+    if(!models.length) $('modelList').innerHTML='<div class="muted">Nenhum modelo instalado. Digite um nome acima e instale.</div>';
+    for(const id of ['model','agentModel']){
+      const sel=$(id); const previous=sel.value; sel.innerHTML='<option value="">Selecione um modelo</option>';
+      for(const m of models){ const o=document.createElement('option'); o.value=m.name;o.textContent=m.name;sel.appendChild(o); }
+      if([...sel.options].some(o=>o.value===previous)) sel.value=previous;
+    }
+    status('modelStatus',`${models.length} modelo(s) instalado(s).`,'ok');
+  } catch(e){ status('modelStatus',e.message,'bad'); }
+}
+let pullWatchTimer=null,pullLastEventAt=0,pullStartedAt=0,registrySearchTimer=null;
+let registryResults=[],registryTags=[];
+function setPullProgress(event){
+  pullLastEventAt=Date.now();
+  const total=Number(event.total||0),completed=Number(event.completed||0);
+  const pct=total>0?Math.max(0,Math.min(100,(completed/total)*100)):0;
+  $('pullProgressWrap').hidden=false;$('pullMeta').hidden=false;
+  if(event.status==='success')$('pullProgress').style.width='100%';
+  else if(total>0)$('pullProgress').style.width=`${pct}%`;
+  if(event.status==='success')$('pullBytes').textContent='Download concluído';
+  else if(total>0)$('pullBytes').textContent=`${humanBytes(completed)} / ${humanBytes(total)} • ${pct.toFixed(1)}%`;
+  else $('pullBytes').textContent=event.digest?`layer ${String(event.digest).slice(0,18)}…`:'Aguardando dados de progresso…';
+  status('modelStatus',event.error||event.status||'Baixando...',event.error?'bad':'');
+}
+function startPullWatch(){
+  pullStartedAt=Date.now();pullLastEventAt=Date.now();
+  clearInterval(pullWatchTimer);
+  pullWatchTimer=setInterval(()=>{
+    const elapsed=Math.floor((Date.now()-pullStartedAt)/1000),idle=Math.floor((Date.now()-pullLastEventAt)/1000);
+    $('pullHeartbeat').textContent=`${elapsed}s decorridos • último evento há ${idle}s${idle>=15?' — verificando…':''}`;
+  },1000);
+}
+function stopPullWatch(){clearInterval(pullWatchTimer);pullWatchTimer=null;}
+function resetRegistryTags(message='Selecione um modelo primeiro'){
+  registryTags=[];
+  const sel=$('registryTag');sel.disabled=true;sel.innerHTML='';
+  const o=document.createElement('option');o.value='';o.textContent=message;sel.appendChild(o);
+}
+function isAdvancedTag(tag){
+  return /(?:-(?:q\d|fp\d+|bf16|f16|mlx(?:-|$)|mxfp\d*|nvfp\d*|mtp(?:-|$))|_[qQ]\d)/i.test(tag);
+}
+function renderRegistryTags(){
+  const sel=$('registryTag'),showAdvanced=$('showAdvancedTags').checked;
+  const visible=registryTags.filter(item=>showAdvanced||!isAdvancedTag(item.tag));
+  sel.innerHTML='<option value="">Selecione uma versão/tag</option>';
+  for(const item of visible){
+    const o=document.createElement('option');o.value=item.name;
+    const meta=[item.size,item.context_window?`${item.context_window} ctx`:null].filter(Boolean).join(' • ');
+    o.textContent=meta?`${item.tag} — ${meta}`:item.tag;sel.appendChild(o);
+  }
+  sel.disabled=!visible.length;
+  if(!visible.length){
+    sel.innerHTML='<option value="">Nenhuma versão nesta visualização</option>';
+  }
+}
+async function loadRegistryTags(model){
+  resetRegistryTags('Carregando versões...');
+  $('pullModel').value='';
+  status('registryStatus',`Carregando versões de ${model}...`);
+  try{
+    const safe=model.split('/').map(encodeURIComponent).join('/');
+    const {data}=await jsonFetch(`/admin/models/registry/${safe}/tags?limit=200`);
+    registryTags=data.tags||[];renderRegistryTags();
+    const compact=registryTags.filter(item=>!isAdvancedTag(item.tag)).length;
+    status('registryStatus',`${registryTags.length} versão(ões) encontrada(s); ${compact} em modo compacto.`,'ok');
+  }catch(e){resetRegistryTags('Falha ao carregar versões');status('registryStatus',e.message,'bad');}
+}
+async function selectRegistryModel(){
+  const model=$('registryModel').value;
+  const selected=registryResults.find(item=>item.name===model);
+  const description=$('registryDescription');
+  if(!model){description.hidden=true;description.textContent='';resetRegistryTags();$('pullModel').value='';return;}
+  description.textContent=selected?.description||model;description.hidden=!description.textContent;
+  await loadRegistryTags(model);
+}
+async function searchRegistry(){
+  const q=$('registryQuery').value.trim();if(q.length<2)return status('registryStatus','Digite ao menos 2 caracteres.','bad');
+  $('registrySearchBtn').disabled=true;status('registryStatus',`Buscando “${q}” em ollama.com...`);
+  try{
+    const {data}=await jsonFetch(`/admin/models/registry/search?q=${encodeURIComponent(q)}&limit=20`);
+    registryResults=data.results||[];
+    const sel=$('registryModel');sel.innerHTML='<option value="">Selecione um modelo</option>';
+    for(const item of registryResults){const o=document.createElement('option');o.value=item.name;o.textContent=item.name;sel.appendChild(o);}
+    $('registryDescription').hidden=true;resetRegistryTags();$('pullModel').value='';
+    status('registryStatus',`${registryResults.length} resultado(s) no catálogo Ollama.`,'ok');
+  }catch(e){status('registryStatus',e.message,'bad');}finally{$('registrySearchBtn').disabled=false;}
+}
+async function pullModel(){
+  const model=$('pullModel').value.trim();if(!model)return status('modelStatus','Informe um nome de modelo.','bad');
+  $('pullBtn').disabled=true;$('pullProgress').style.width='0%';$('pullProgressWrap').hidden=false;$('pullMeta').hidden=false;startPullWatch();
+  status('modelStatus',`Iniciando download de ${model}...`);
+  try{
+    const headers={'Content-Type':'application/json'};if(apiKey)headers.Authorization=`Bearer ${apiKey}`;
+    const response=await fetch('/admin/models/pull/stream',{method:'POST',headers,body:JSON.stringify({model})});
+    if(!response.ok){let data={};try{data=await response.json();}catch{}throw new Error(data?.error?.message||data?.detail||`${response.status} ${response.statusText}`);}
+    if(!response.body)throw new Error('Browser não disponibilizou o stream do download.');
+    const reader=response.body.getReader(),decoder=new TextDecoder();let buffer='';
+    while(true){
+      const {value,done}=await reader.read();buffer+=decoder.decode(value||new Uint8Array(),{stream:!done});
+      const lines=buffer.split('\n');buffer=lines.pop()||'';
+      for(const line of lines){if(!line.trim())continue;const event=JSON.parse(line);setPullProgress(event);if(event.error)throw new Error(event.error);}
+      if(done)break;
+    }
+    if(buffer.trim()){const event=JSON.parse(buffer);setPullProgress(event);if(event.error)throw new Error(event.error);}
+    $('pullProgress').style.width='100%';status('modelStatus',`${model} instalado.`,'ok');await loadModels();
+  }catch(e){status('modelStatus',e.message,'bad');}finally{$('pullBtn').disabled=false;stopPullWatch();}
+}
+async function deleteModel(name){ if(!confirm(`Remover ${name} do Ollama?`))return; try{await jsonFetch(`/admin/models/${encodeURIComponent(name)}`,{method:'DELETE'}); await loadModels();}catch(e){status('modelStatus',e.message,'bad');} }
+function resetMetrics(){ for(const id of ['mRequest','mPublic','mUpstream','mLatency','mInput','mOutput','mTotal','mTps','mGpu','mUtil','mVram','mTemp','mPower','mEnergy','mJpt','mTpWh']) $(id).textContent='—'; }
+function renderUsage(u){ $('mRequest').textContent=u.request_id||'—';$('mPublic').textContent=u.public_model||'—';$('mUpstream').textContent=u.upstream_model||'—';$('mLatency').textContent=fmt(u.latency_ms,1,' ms');$('mInput').textContent=u.input_tokens??'—';$('mOutput').textContent=u.output_tokens??'—';$('mTotal').textContent=u.total_tokens??'—';$('mTps').textContent=fmt(u.output_tokens_per_second,2);$('mGpu').textContent=u.gpu_name||'—';$('mUtil').textContent=`${fmt(u.utilization_avg_pct,1,'%')} / ${fmt(u.utilization_peak_pct,1,'%')}`;$('mVram').textContent=fmt(u.memory_peak_mb,1,' MB');$('mTemp').textContent=`${fmt(u.temperature_avg_c,1,' °C')} / ${fmt(u.temperature_peak_c,1,' °C')}`;$('mPower').textContent=`${fmt(u.power_avg_w,1,' W')} / ${fmt(u.power_peak_w,1,' W')}`;$('mEnergy').textContent=`${fmt(u.energy_joules,3,' J')} / ${fmt(u.energy_wh,6,' Wh')}`;$('mJpt').textContent=fmt(u.joules_per_output_token,4);$('mTpWh').textContent=fmt(u.output_tokens_per_wh,2); }
+async function sendPrompt(){ const model=$('model').value,prompt=$('prompt').value.trim(); if(!model||!prompt)return status('sendStatus','Selecione modelo e informe a mensagem.','bad'); $('send').disabled=true; resetMetrics(); $('answer').textContent='Gerando...'; status('sendStatus','Enviando...'); try{ const {response,data}=await jsonFetch('/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model,messages:[{role:'user',content:prompt}],stream:false,max_tokens:Number($('maxTokens').value)||256,reasoning_effort:$('reasoning').value})}); $('rawJson').textContent=JSON.stringify(data,null,2); $('answer').textContent=data?.choices?.[0]?.message?.content||'(sem conteúdo)'; const requestId=response.headers.get('x-request-id'); if(requestId){ $('mRequest').textContent=requestId; try{ const u=await jsonFetch(`/admin/usage/${encodeURIComponent(requestId)}`); renderUsage(u.data); }catch{} } status('sendStatus','Resposta concluída.','ok'); }catch(e){$('answer').textContent='—';status('sendStatus',e.message,'bad');}finally{$('send').disabled=false;} }
+async function ragIngest(){ let metadata={}; try{metadata=JSON.parse($('ragMetadata').value||'{}');}catch{return status('ragIngestStatus','Metadata precisa ser JSON válido.','bad');} const text=$('ragText').value.trim(); if(!text)return status('ragIngestStatus','Cole algum texto.','bad'); status('ragIngestStatus','Vetorizando e indexando...'); try{const {data}=await jsonFetch('/admin/rag/documents',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,collection:$('ragCollection').value.trim()||null,metadata})});status('ragIngestStatus',`${data.chunks} chunks indexados em ${data.collection} usando ${data.embedding_model}.`,'ok');}catch(e){status('ragIngestStatus',e.message,'bad');} }
+async function ragSearch(){ const query=$('ragQuery').value.trim(); if(!query)return status('ragSearchStatus','Informe a consulta.','bad'); status('ragSearchStatus','Buscando...'); try{const {data}=await jsonFetch('/admin/rag/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query,collection:$('ragCollection').value.trim()||null,limit:5})});$('ragHits').textContent=JSON.stringify(data.hits,null,2);status('ragSearchStatus',`${data.hits.length} resultado(s).`,'ok');}catch(e){status('ragSearchStatus',e.message,'bad');} }
+function renderAgentOptions(agents){ const sel=$('agentChatSelect'),prev=sel.value;sel.innerHTML='<option value="">Selecione</option>'; for(const a of agents){const o=document.createElement('option');o.value=a.id;o.textContent=`${a.name} — ${a.model}`;sel.appendChild(o);} if([...sel.options].some(o=>o.value===prev))sel.value=prev; }
+async function loadAgents(){ try{const {data}=await jsonFetch('/admin/agents');const agents=data.agents||[];$('agentList').innerHTML='';for(const a of agents){const div=document.createElement('div');div.className='item';const left=document.createElement('div');left.innerHTML=`<strong>${a.name}</strong><span class="pill">${a.model}</span>${a.rag_enabled?'<span class="pill">RAG</span>':''}<div class="meta">memória: ${a.memory_messages} mensagens • thinking: ${a.reasoning_effort}</div>`;const b=document.createElement('button');b.textContent='Excluir';b.className='danger';b.onclick=()=>deleteAgent(a.id);div.append(left,b);$('agentList').appendChild(div);}if(!agents.length)$('agentList').innerHTML='<div class="muted">Nenhum agent salvo.</div>';renderAgentOptions(agents);}catch(e){status('agentStatus',e.message,'bad');} }
+async function createAgent(){ const body={name:$('agentName').value.trim(),system_prompt:$('agentPrompt').value,model:$('agentModel').value,reasoning_effort:'none',max_output_tokens:256,rag_enabled:$('agentRag').value==='true',rag_collection:$('agentRagCollection').value.trim()||null,memory_messages:Number($('agentMemory').value)||0}; if(!body.name||!body.model)return status('agentStatus','Informe nome e modelo.','bad'); try{const {data}=await jsonFetch('/admin/agents',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});status('agentStatus',`Agent ${data.name} criado.`,'ok');await loadAgents();}catch(e){status('agentStatus',e.message,'bad');} }
+async function deleteAgent(id){ if(!confirm('Excluir este agent e sua memória?'))return;try{await jsonFetch(`/admin/agents/${id}`,{method:'DELETE'});await loadAgents();}catch(e){status('agentStatus',e.message,'bad');} }
+async function agentSend(){ const agentId=$('agentChatSelect').value,message=$('agentMessage').value.trim();if(!agentId||!message)return status('agentChatStatus','Selecione agent e informe mensagem.','bad');status('agentChatStatus','Executando...');try{const {data}=await jsonFetch(`/admin/agents/${agentId}/chat`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message,thread_id:$('threadId').value.trim()||null})});$('threadId').value=data.thread_id;$('agentAnswer').textContent=data.output_text||JSON.stringify(data.response,null,2);status('agentChatStatus',`Thread ${data.thread_id}${data.rag_hits?.length?` • ${data.rag_hits.length} contextos RAG`:''}`,'ok');}catch(e){status('agentChatStatus',e.message,'bad');} }
+async function clearMemory(){const agentId=$('agentChatSelect').value,thread=$('threadId').value.trim();if(!agentId||!thread)return status('agentChatStatus','Selecione agent e informe uma thread existente.','bad');try{const {data}=await jsonFetch(`/admin/agents/${agentId}/memory/${encodeURIComponent(thread)}`,{method:'DELETE'});status('agentChatStatus',`${data.deleted_messages} mensagens removidas.`,'ok');}catch(e){status('agentChatStatus',e.message,'bad');} }
+async function createKey(){const name=$('keyName').value.trim();if(!name)return status('keyStatus','Informe um nome.','bad');try{const {data}=await jsonFetch('/admin/api-keys',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});$('integrationKey').value=data.api_key;status('keyStatus','API key criada. Copie agora.','ok');}catch(e){status('keyStatus',e.message,'bad');} }
+$('registrySearchBtn').onclick=searchRegistry;$('registryQuery').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();searchRegistry();}};$('registryQuery').oninput=()=>{clearTimeout(registrySearchTimer);if($('registryQuery').value.trim().length>=2)registrySearchTimer=setTimeout(searchRegistry,450);};$('registryModel').onchange=selectRegistryModel;$('registryTag').onchange=()=>{if($('registryTag').value)$('pullModel').value=$('registryTag').value;};$('showAdvancedTags').onchange=()=>{renderRegistryTags();$('pullModel').value='';};$('pullBtn').onclick=pullModel;$('reloadModels').onclick=loadModels;$('send').onclick=sendPrompt;$('ragIngest').onclick=ragIngest;$('ragSearch').onclick=ragSearch;$('createAgent').onclick=createAgent;$('agentSend').onclick=agentSend;$('clearMemory').onclick=clearMemory;$('createKey').onclick=createKey;
+(async()=>{ try{await initSession(); await Promise.all([loadStatus(),loadModels(),loadAgents()]); setInterval(loadStatus,15000);}catch(e){alert(`Falha ao iniciar UI: ${e.message}`);} })();
+</script>
+</body>
+</html>

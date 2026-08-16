@@ -1,0 +1,36 @@
+[tool.poetry]
+name = "local-ai-gateway"
+version = "0.4.0"
+description = "Local-first OpenAI-compatible AI gateway with bare-metal FastAPI development, Ollama, PostgreSQL, Redis and Qdrant"
+authors = ["Internal Development"]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = ">=3.12,<3.15"
+fastapi = ">=0.115,<1.0"
+uvicorn = {version = ">=0.34,<1.0", extras = ["standard"]}
+httpx = ">=0.28,<1.0"
+sqlalchemy = ">=2.0,<3.0"
+asyncpg = ">=0.30,<1.0"
+redis = ">=5.2,<8.0"
+pydantic = ">=2.10,<3.0"
+pydantic-settings = ">=2.7,<3.0"
+nvidia-ml-py = ">=12.570,<14.0"
+openai = ">=1.60,<3.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8.3,<10.0"
+pytest-asyncio = ">=0.25,<2.0"
+ruff = ">=0.16.3,<1.0"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
